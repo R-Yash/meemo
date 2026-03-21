@@ -1,5 +1,5 @@
 import re
-import hashlib
+import uuid
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -28,7 +28,7 @@ class Document:
         if not self.created_at:
             self.created_at = datetime.now(timezone.utc).isoformat()
         if not self.doc_id:
-            self.doc_id = hashlib.sha256(f"{self.source}{self.text[:200]}".encode()).hexdigest()[:16]
+            self.doc_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{self.source}{self.text[:200]}"))
  
     def preview(self, chars=300):
         return self.text[:chars].strip() + ("..." if len(self.text) > chars else "")
