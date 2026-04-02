@@ -44,7 +44,7 @@ async def _embed_one(chunk: dict) -> dict:
     result = await client.aio.models.embed_content(
         model="gemini-embedding-2-preview",
         contents=chunk["text"],
-        config=types.EmbedContentConfig(task_type="SEMANTIC_SIMILARITY",output_dimensionality=768),
+        config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT",output_dimensionality=768),
     )
     chunk["embedding"] = result.embeddings[0].values
     return chunk

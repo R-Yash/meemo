@@ -80,7 +80,7 @@ def extract_docx(path: str) -> Document:
     props = doc.core_properties
     return Document(
         text=_clean("\n".join(lines)), source=str(p.resolve()), source_type="docx",
-        title=props.title or p.stem, author=props.author or "",
+        title=props.title or p.stem,
     )
 
 def extract_youtube(url: str) -> Document:
