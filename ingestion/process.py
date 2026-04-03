@@ -9,8 +9,8 @@ from google.genai import types
 from pinecone import Pinecone
 from neo4j import GraphDatabase
 
-from ingest import Document, extract_note
-from chunk import chunk_document, embed_chunks
+from ingestion.ingest import Document, extract_note
+from ingestion.chunk import chunk_document, embed_chunks
 
 import asyncio
 load_dotenv()

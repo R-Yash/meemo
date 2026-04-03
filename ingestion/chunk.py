@@ -7,7 +7,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from dotenv import load_dotenv
 import asyncio
 
-from ingest import Document
+from ingestion.ingest import Document
 
 load_dotenv()
 log = logging.getLogger(__name__)
