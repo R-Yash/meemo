@@ -53,8 +53,4 @@ async def query_meemo(user_query: str, stream:  bool = True, verbose: bool = Fal
 
 
 if __name__ == "__main__":
-    import sys
-
-    query   = "What did Einstein discover"
-
-    asyncio.run(query_meemo(query, stream=True))
+    asyncio.run(query_meemo("What did Bohr discover", stream=True, verbose=True))

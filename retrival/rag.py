@@ -12,11 +12,11 @@ from pinecone import Pinecone
 from neo4j import GraphDatabase
 
 load_dotenv()
- 
+
 PINECONE_KEY = os.getenv("PINECONE_KEY")
 PINECONE_INDEX = os.getenv("PINECONE_INDEX")
 POSTGRES_DSN = os.getenv("POSTGRES_DSN")
- 
+
 client = genai.Client()
  
 SEMANTIC_TOP_K = 10   
