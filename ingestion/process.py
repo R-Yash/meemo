@@ -43,9 +43,7 @@ async def generate_tags(doc: Document) -> list[str]:
     )
     try:
         tags = json.loads(response.text)
-        # Deduplicate and normalize tags
-        unique_tags = list(set(t.lower().strip() for t in tags if t.strip()))
-        return unique_tags
+        return list(dict.fromkeys(t.lower().strip() for t in tags))
     except json.JSONDecodeError:
         return []
 
@@ -185,11 +183,9 @@ def write_to_postgres(doc: Document, chunks: list[dict], tags: list[str]):
              chunk["text"], chunk["chunk_id"]),
         )
 
-    # Delete existing tags for this document before inserting new ones
-    # This ensures tags are replaced on re-ingestion rather than accumulated
     cur.execute("DELETE FROM tags WHERE document_id = %s", (doc.doc_id,))
 
-    for tag in tags:
+    for tag in list(dict.fromkeys(tags)):
         cur.execute(
             """
             INSERT INTO tags (document_id, tag)
