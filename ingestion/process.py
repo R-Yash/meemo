@@ -16,7 +16,7 @@ import asyncio
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-PINECONE_KEY = os.getenv("PINECONE_KEY")
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 POSTGRES_DSN = os.getenv("POSTGRES_DSN")
 PINECONE_INDEX = os.getenv("PINECONE_INDEX")
 NEO4J_URI = os.getenv("NEO4J_URI")
@@ -43,7 +43,9 @@ async def generate_tags(doc: Document) -> list[str]:
     )
     try:
         tags = json.loads(response.text)
-        return [t.lower().strip() for t in tags]
+        # Deduplicate and normalize tags
+        unique_tags = list(set(t.lower().strip() for t in tags if t.strip()))
+        return unique_tags
     except json.JSONDecodeError:
         return []
 
@@ -183,12 +185,15 @@ def write_to_postgres(doc: Document, chunks: list[dict], tags: list[str]):
              chunk["text"], chunk["chunk_id"]),
         )
 
+    # Delete existing tags for this document before inserting new ones
+    # This ensures tags are replaced on re-ingestion rather than accumulated
+    cur.execute("DELETE FROM tags WHERE document_id = %s", (doc.doc_id,))
+
     for tag in tags:
         cur.execute(
             """
             INSERT INTO tags (document_id, tag)
             VALUES (%s, %s)
-            ON CONFLICT DO NOTHING
             """,
             (doc.doc_id, tag),
         )
@@ -199,7 +204,7 @@ def write_to_postgres(doc: Document, chunks: list[dict], tags: list[str]):
 
 
 def write_to_pinecone(doc: Document, chunks: list[dict]):
-    pc = Pinecone(api_key=PINECONE_KEY)
+    pc = Pinecone(api_key=PINECONE_API_KEY)
     index = pc.Index(PINECONE_INDEX)
 
     vectors = [
@@ -291,59 +296,3 @@ async def ingest_async(doc: Document, driver) -> str:
     write_to_postgres(doc, chunks, tags)
     write_to_pinecone(doc, chunks)
     write_to_neo4j(doc, entities, relations, driver)
-
-
-# text1 = """
-# Albert Einstein (14 March 1879 – 18 April 1955) was a German-born theoretical physicist best known for developing the theory of relativity. 
-# Einstein also made important contributions to quantum theory. 
-# His mass–energy equivalence formula E = mc2, which arises from special relativity, has been called "the world's most famous equation".
-# He received the 1921 Nobel Prize in Physics for "his services to theoretical physics, and especially for his discovery of the law of the 
-# photoelectric effect", a pivotal step in the development of quantum theory.
-# Einstein moved to Switzerland in 1895, forsaking his German citizenship the following year. 
-# In 1897, at the age of seventeen, he enrolled in the mathematics and physics teaching diploma program at the Swiss federal polytechnic school in Zurich, graduating in 1900
-# Adolf Hitler came to power in Germany.
-# Horrified by the Nazi persecution of his fellow Jews,he decided to remain in the US, and was granted American citizenship in 1940.
-# On the eve of World War II, he endorsed a letter to President Franklin D. Roosevelt alerting him to the potential German nuclear weapons program
-# """
-
-# text2 = """
-# Adolf Hitler(20 April 1889 – 30 April 1945) was an Austrian-born German politician who was the dictator of Germany during the 
-# Nazi era from 1933 until his suicide in 1945. He rose to power as the leader of the Nazi Party, 
-# becoming the chancellor of Germany in 1933 and then taking the title of Führer und Reichskanzler in 1934.
-# Germany's invasion of Poland on 1 September 1939 under his leadership marked the outbreak of the Second World War. 
-# Throughout the ensuing conflict, Hitler was closely involved in the direction of German military operations and 
-# was central to the perpetration of the Holocaust, the genocide of about six million Jews and millions of other victims.
-# """
-
-# text3 = """
-# Niels Bohr (7 October 1885 – 18 November 1962) was a Danish theoretical physicist who made foundational contributions to understanding 
-# atomic structure and quantum theory, for which he received the Nobel Prize in Physics in 1922.
-# He was also a philosopher and a promoter of scientific research. Bohr developed the Bohr model of the atom, 
-# in which he proposed that energy levels of electrons are discrete and that the electrons revolve in stable orbits around 
-# the atomic nucleus but can jump from one energy level (or orbit) to another.The Bohr model worked well for hydrogen and ionized single-electron helium, 
-# which impressed Einstein[53][54] but could not explain more complex elements.
-# """
-
-# doc1 = extract_note(text=text1, title="Einstein")
-# doc2 = extract_note(text=text2, title="Hitler")
-# doc3 = extract_note(text=text3, title="Bohr")
-
-
-# async def main() -> None:
-#     driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
-#     with driver.session() as session:
-#         session.run("CREATE CONSTRAINT entity_id IF NOT EXISTS FOR (e:Entity) REQUIRE e.id IS UNIQUE")
-#         session.run("CREATE CONSTRAINT document_id IF NOT EXISTS FOR (d:Document) REQUIRE d.id IS UNIQUE")
-
-#     all_docs = [doc1, doc2, doc3]
-#     for doc in all_docs:
-#         await ingest_async(doc, driver)
-
-#     driver.close()
-
-#     if hasattr(client.aio, "close"):
-#         await client.aio.close()
-
-
-# if __name__ == "__main__":
-#     asyncio.run(main())
